@@ -13,7 +13,8 @@ typedef struct LinkedList {
 } LinkedList;
 
 typedef int (*LinkedListFilter)(void*,void*);
-typedef void (*LinkedListCallback)(void*,void*);
+typedef void* (*LinkedListMapper)(void*,void*);
+typedef void* (*LinkedListFolder) (void*, void*, void*);
 
 LinkedList* linkedListCreate();
 void linkedListDestroy(LinkedList* list);
@@ -25,6 +26,10 @@ void linkedListPush(LinkedList* list, void* data);
 
 void linkedListFilter(LinkedList* list, LinkedListFilter filter, void* filterData);
 void* linkedListGetFirst(LinkedList* list, LinkedListFilter filter, void* filterData);
-void linkedListIterate(LinkedList* list, LinkedListCallback callback, void* callbackData);
+
+void linkedListMap(LinkedList* list, LinkedListMapper mapper, void* mapperData);
+
+void* linkedListFoldR(LinkedList* list, LinkedListFolder folder, void* zero, void* folderData);
+void* linkedListFoldL(LinkedList* list, LinkedListFolder folder, void* zero, void* folderData);
 
 #endif

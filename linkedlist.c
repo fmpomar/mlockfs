@@ -2,6 +2,10 @@
 #include "linkedlist.h"
 #include <stdlib.h>
 
+/*
+	TAIL RECURSION IS ITS OWN REWARD
+*/
+
 LinkedListNode* linkedListNodeCreate(void* data, LinkedListNode* next) {
 	LinkedListNode* node = (LinkedListNode*)malloc(sizeof(LinkedListNode));
 	node->data = data;
@@ -69,10 +73,28 @@ void* linkedListGetFirst(LinkedList* list, LinkedListFilter filter, void* filter
 	return NULL;
 }
 
-void linkedListIterate(LinkedList* list, LinkedListCallback callback, void* callbackData) {
+void linkedListMap(LinkedList* list, LinkedListMapper mapper, void* mapperData) {
 	LinkedListNode* node = list->first;
 	while (node) {
-		callback(node->data, callbackData);
+		node->data = mapper(node->data, mapperData);
+		node = node->next;
+	}
+}
+
+void* linkedListFoldRRec(LinkedListNode* node, LinkedListFolder folder, void* zero, void* folderData) {
+	if (!node) return zero;
+	return folder(linkedListFoldRRec(node->next, folder, zero, folderData), node->data, folderData);
+}
+
+void* linkedListFoldR(LinkedList* list, LinkedListFolder folder, void* zero, void* folderData) {
+	return linkedListFoldRRec(list->first, folder, zero, folderData);
+}
+
+void* linkedListFoldL(LinkedList* list, LinkedListFolder folder, void* zero, void* folderData) {
+	LinkedListNode* node = list->first;
+	void* result = zero;
+	while (node) {
+		result = folder(result, node->data, folderData);
 		node = node->next;
 	}
 }
