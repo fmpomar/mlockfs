@@ -71,6 +71,15 @@ void linkedListFilter(LinkedList* list, LinkedListFilter filter, void* filterDat
 	list->first = linkedListFilterRec(list->first, filter, filterData);
 }
 
+void* linkedListGetFirst(LinkedList* list, LinkedListFilter filter, void* filterData) {
+	LinkedListNode* node = list->first;
+	while (node) {
+		if (filter(node->data, filterData))
+			return node->data;
+		node = node->next;
+	}
+	return NULL;
+}
 
 void linkedListIterate(LinkedList* list, LinkedListCallback callback, void* callbackData) {
 	LinkedListNode* node = list->first;
