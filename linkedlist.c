@@ -23,13 +23,16 @@ LinkedList* linkedListCreate() {
 	return new;
 }
 
-void linkedListPop(LinkedList* list) {
+void* linkedListPop(LinkedList* list) {
 	LinkedListNode* next;
+	void* data;
 	if (list->first) {
 		next = list->first->next;
+		data = list->first->data;
 		linkedListNodeDestroy(list->first);
 		list->first = next;
 	}
+	return data;
 }
 
 void linkedListPush(LinkedList* list, void* data) {
@@ -97,4 +100,17 @@ void* linkedListFoldL(LinkedList* list, LinkedListFolder folder, void* zero, voi
 		result = folder(result, node->data, folderData);
 		node = node->next;
 	}
+	return result;
+}
+
+LinkedListIter linkedListIter(LinkedList * list) {
+	return list->first;
+}
+
+void* linkedListIterData(LinkedListIter iter) {
+	return iter->data;
+}
+
+LinkedListIter linkedListIterNext(LinkedListIter iter) {
+	return iter->next;
 }
