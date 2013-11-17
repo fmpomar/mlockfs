@@ -1,15 +1,6 @@
 
+#include "linkedlist.h"
 #include <stdlib.h>
-#include <stdio.h>
-
-typedef struct LinkedListNode {
-	struct LinkedListNode* next;
-	void* data;
-} LinkedListNode;
-
-typedef struct LinkedList {
-	LinkedListNode* first;
-} LinkedList;
 
 LinkedListNode* linkedListNodeCreate(void* data, LinkedListNode* next) {
 	LinkedListNode* node = (LinkedListNode*)malloc(sizeof(LinkedListNode));
@@ -17,9 +8,6 @@ LinkedListNode* linkedListNodeCreate(void* data, LinkedListNode* next) {
 	node->next = next;
 	return node;
 }
-
-typedef int (*LinkedListFilter)(void*,void*);
-typedef void (*LinkedListCallback)(void*,void*);
 
 void linkedListNodeDestroy(LinkedListNode* node) {
 	free(node);
@@ -87,35 +75,4 @@ void linkedListIterate(LinkedList* list, LinkedListCallback callback, void* call
 		callback(node->data, callbackData);
 		node = node->next;
 	}
-}
-
-void printCallback(void* element, void* data) {
-	printf("%s\n", (char*)element);
-}
-
-int removeFilter(void* element, void* data) {
-	return (strcmp((char*)element,(char*)data)==0);
-}
-
-int main(int argc, char const *argv[])
-{
-	LinkedList* myLinkedList = linkedListCreate();
-
-	linkedListIterate(myLinkedList, printCallback, NULL);
-	linkedListPop(myLinkedList);
-
-	linkedListPush(myLinkedList, "poronga");
-	linkedListPush(myLinkedList, "chota");
-	linkedListPush(myLinkedList, "verga");
-	linkedListIterate(myLinkedList, printCallback, NULL);
-
-	printf("removing\n");
-
-	linkedListFilter(myLinkedList, removeFilter, "chotax");
-
-	printf("removed\n");
-
-	linkedListIterate(myLinkedList, printCallback, NULL);
-
-	return 0;
 }
