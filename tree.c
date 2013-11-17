@@ -33,7 +33,11 @@ void freeNameList(LinkedList* nameList) {
 }
 
 inline int isDirectory(INode* inode) {
-	return ((inode->stat).st_mode | S_IFDIR);
+	return ((inode->stat).st_mode & S_IFDIR);
+}
+
+inline int isRegular(INode* inode) {
+	return ((inode->stat).st_mode & S_IFREG);
 }
 
 int linkFilter(void* current, void* data) {
@@ -95,7 +99,7 @@ Link* createRoot() {
 	INode* rootNode = malloc(sizeof(INode));
 	Directory* rootDirectory = malloc(sizeof(Directory));
 	struct stat * nodeStat = &(rootNode->stat);
-	
+
 	root->name = "";
 	root->inode = rootNode;
 	memset(&(rootNode->stat), 0, sizeof(struct stat));

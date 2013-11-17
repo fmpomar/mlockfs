@@ -36,6 +36,7 @@ void addDummyFile(INode* inode, char*name);;
 INode* addDummyDir(INode* inode, char*name);;
 
 inline int isDirectory(INode* inode);
+inline int isRegular(INode* inode);
 
 int linkINode(INode* parentNode, const char* name, INode* node);
 INode* createINode(INode* parentNode, const char* name, mode_t mode);

@@ -58,17 +58,56 @@ static int mlockfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 }
 
-static int mlockfs_open(const char *path, struct fuse_file_info *fi)
+static int mlockfs_open(const char *path, struct fuse_file_info * ffi)
 {
-    if(strcmp(path, mlockfs_path) != 0)
-        return -ENOENT;
+    INode* node = getNodeByPath(root, path);
+
+    if(!node) return -ENOENT;
+
+    switch (ffi->flags & O_ACCMODE) {
+        case O_WRONLY:
+        case O_RDONLY:
+        case O_RDWR:
+    }
 
     if((fi->flags & 3) != O_RDONLY)
         return -EACCES;
 
-    sleep(5);
-
     return 0;
+}
+
+static int mlockfs_rmdir(const char *path) {
+    INode* directoryNode = getNodeByPath(root, path);
+    INode* parentNode;
+    char* name;
+    Directory * directory;
+    if (!directoryNode) return -ENOENT;
+    if (!isDirectory(directoryNode)) return -ENOTDIR;
+    directory = ((Directory*)(directoryNode->payload));
+    if (!linkedListEmpty(directory->links)) return -ENOTEMPTY;
+    parentNode = getParentNodeByPath(root, path);
+    if (!parentNode) return -EACCES;
+    name = getBasename(path);
+    unlinkINode(parentNode, name);
+    return 0;
+
+}
+
+static int mlockfs_unlink(const char * path) {
+    INode* fileNode = getNodeByPath(root, path);
+    INode* parentNode;
+    char* name;
+    if (!fileNode) return -ENOENT;
+    if (isDirectory(fileNode)) return -EPERM;
+    parentNode = getParentNodeByPath(root, path);
+    if (!parentNode) return -EACCES;
+    name = getBasename(path);
+    unlinkINode(parentNode, name);
+    return 0;
+}
+
+static int mlockfs_create(const char * path, mode_t mode, struct fuse_file_info * ffi) {
+
 }
 
 static int mlockfs_read(const char *path, char *buf, size_t size, off_t offset,
@@ -110,12 +149,16 @@ static int mlockfs_mkdir(const char * path, mode_t mode) {
     return 0;
 }
 
+
 static struct fuse_operations mlockfs_oper = {
     .getattr   = mlockfs_getattr,
     .readdir = mlockfs_readdir,
     .open   = mlockfs_open,
     .read   = mlockfs_read,
     .mkdir  = mlockfs_mkdir,
+    .rmdir  = mlockfs_rmdir,
+    .unlink = mlockfs_unlink,
+    .create = mlockfs_create
 };
 
 void* printFoldr(void* result, void* current, void* data) {
