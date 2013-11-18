@@ -14,6 +14,7 @@ LinkedListNode* linkedListNodeCreate(void* data, LinkedListNode* next) {
 }
 
 void linkedListNodeDestroy(LinkedListNode* node) {
+	memset(node, 0, sizeof(LinkedListNode));
 	free(node);
 }
 
@@ -46,6 +47,7 @@ int linkedListEmpty(LinkedList* list) {
 void linkedListDestroy(LinkedList* list) {
 	while (!linkedListEmpty(list))
 		linkedListPop(list);
+	memset(list, 0, sizeof(LinkedList));
 	free(list);
 }
 
