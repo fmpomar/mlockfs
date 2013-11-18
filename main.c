@@ -102,6 +102,8 @@ static int mlockfs_link(const char* origin, const char* path) {
     INode* parentNode; 
     char* name;
 
+    if (getNodeByPath(root, path)) return -EEXIST;
+
     sourceNode = getNodeByPath(root, origin);
     parentNode = getParentNodeByPath(root, path);
 
@@ -120,6 +122,8 @@ static int mlockfs_link(const char* origin, const char* path) {
 static int mlockfs_create(const char * path, mode_t mode, struct fuse_file_info * ffi) {
     INode* parentNode; 
     char* name;
+
+    if (getNodeByPath(root, path)) return -EEXIST;
 
     parentNode = getParentNodeByPath(root, path);
 
@@ -177,6 +181,8 @@ static int mlockfs_read(const char *path, char *buf, size_t size, off_t offset,
 static int mlockfs_mkdir(const char * path, mode_t mode) {
     INode* parentNode; 
     char* name;
+
+    if (getNodeByPath(root, path)) return -EEXIST;
 
     parentNode = getParentNodeByPath(root, path);
 
