@@ -97,6 +97,26 @@ static int mlockfs_unlink(const char * path) {
     return 0;
 }
 
+static int mlockfs_link(const char* origin, const char* path) {
+    INode* sourceNode;
+    INode* parentNode; 
+    char* name;
+
+    sourceNode = getNodeByPath(root, origin);
+    parentNode = getParentNodeByPath(root, path);
+
+    if (!parentNode || !sourceNode) return -EACCES;
+    if (!isDirectory(parentNode)) return -EACCES;
+    if (isDirectory(sourceNode)) return -EPERM;
+
+    name = getBasename(path);
+    linkINode(parentNode, name, sourceNode);
+    free(name);
+
+    return 0;
+
+}
+
 static int mlockfs_create(const char * path, mode_t mode, struct fuse_file_info * ffi) {
     INode* parentNode; 
     char* name;
@@ -214,7 +234,8 @@ static struct fuse_operations mlockfs_oper = {
     .create = mlockfs_create,
     .chmod = mlockfs_chmod,
     .chown = mlockfs_chown,
-    .utimens = mlockfs_utimens
+    .utimens = mlockfs_utimens,
+    .link = mlockfs_link
 };
 
 void* printFoldr(void* result, void* current, void* data) {
