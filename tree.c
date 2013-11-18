@@ -1,4 +1,5 @@
 #include "tree.h"
+#include "linkedlist.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -6,6 +7,9 @@
 #include <unistd.h>
 
 #include <pthread.h>
+
+#include "dir.h"
+#include "file.h"
 
 LinkedList* parsePath(const char* path) {
 	char* token;
@@ -33,19 +37,11 @@ void freeNameList(LinkedList* nameList) {
 }
 
 inline int isDirectory(INode* inode) {
-	return ((inode->stat).st_mode & S_IFDIR);
+	return S_ISDIR(inode->stat.st_mode);
 }
 
 inline int isRegular(INode* inode) {
-	return ((inode->stat).st_mode & S_IFREG);
-}
-
-int linkFilter(void* current, void* data) {
-	Link* currentLink = (Link*) current;
-	char* nameToFind = (char*) data;
-	if (!currentLink) {printf("CAGAZO\n"); return 0;}
-	printf("%s,%s\n",nameToFind,currentLink->name );
-	return (strcmp(nameToFind, currentLink->name) == 0);
+	return S_ISREG(inode->stat.st_mode);
 }
 
 void* linkFoldr(void* result, void* current, void* data) {
@@ -56,7 +52,7 @@ void* linkFoldr(void* result, void* current, void* data) {
 	resultNode = resultLink->inode;
 
 	if (isDirectory(resultNode)) {
-		return linkedListGetFirst(((Directory*)(resultNode->payload))->links, linkFilter, currentName);
+		return directoryLinkGet((Directory*) resultNode->payload, currentName);
 	} else {
 		return NULL; // A file cannot have any subdirs!
 	}
@@ -80,7 +76,10 @@ INode* getNodeByPath(Link* root, const char* path) {
 INode* getParentNodeByPath(Link* root, const char* path) {
 	LinkedList* nameList = parsePath(path);
 	INode* result;
-	if (linkedListEmpty(nameList)) return NULL;
+	if (linkedListEmpty(nameList)) {
+		freeNameList(nameList);
+		return NULL;
+	}
 	linkedListPop(nameList);
 	result = getNodeByNameList(root, nameList);
 	freeNameList(nameList);
@@ -97,7 +96,7 @@ char* getBasename(const char* path) {
 Link* createRoot() {
 	Link* root = malloc(sizeof(Link));
 	INode* rootNode = malloc(sizeof(INode));
-	Directory* rootDirectory = malloc(sizeof(Directory));
+	Directory* rootDirectory = directoryCreate();
 	struct stat * nodeStat = &(rootNode->stat);
 
 	root->name = "";
@@ -115,18 +114,27 @@ Link* createRoot() {
 	nodeStat->st_gid = getgid();
 
 	rootNode->payload = rootDirectory;
-	rootDirectory->links = linkedListCreate();
 	return root;
+}
+
+void chownINode(INode* node, uid_t uid, gid_t gid) {
+	if (!node) return;
+	if (gid != (-1))
+		node->stat.st_gid = gid;
+	if (uid != (-1))
+		node->stat.st_uid = uid;
+}
+
+void chmodINode(INode* node, mode_t mode) {
+	if (!node) return;
+	node->stat.st_mode = mode;
 }
 
 INode* createINode(INode* parentNode, const char* name, mode_t mode) {
 	INode* newNode;
 	struct stat * nodeStat;
-	Directory* newDirectory;
-	File* newFile;
 
 	if (!isDirectory(parentNode)) return NULL;
-	if ((!(mode | S_IFDIR)) && (!(mode | S_IFREG))) return NULL;
 	if (!name) return NULL;
 
 	if (isDirectory(parentNode)) {
@@ -141,17 +149,19 @@ INode* createINode(INode* parentNode, const char* name, mode_t mode) {
 		nodeStat->st_ctime = time(NULL);
 		nodeStat->st_nlink = 0;
 
-		if (mode | S_IFDIR) {
-			newDirectory = malloc(sizeof(Directory));
-			newDirectory->links = linkedListCreate();
-			newNode->payload = newDirectory;
-		} else if (mode | S_IFREG) {
-			newFile = malloc(sizeof(File));
-			newNode->payload = newFile;
+		switch (mode & S_IFMT) {
+			case S_IFDIR:
+				newNode->payload = directoryCreate();
+				break;
+			case S_IFREG:
+				newNode->payload = fileCreate();
+				break;
+			default:
+				free(newNode);
+				return NULL;
+				break;
 		}
 		
-		newNode->payload = newDirectory;
-
 		linkINode(parentNode, name, newNode);
 		return newNode;
 
@@ -160,32 +170,45 @@ INode* createINode(INode* parentNode, const char* name, mode_t mode) {
 	return NULL;
 }
 
-int linkINode(INode* parentNode, const char* name, INode* node) {
-	Link* newLink;
+void destroyINode(INode* node) {
+	if (node) {
+		switch (node->stat.st_mode & S_IFMT) {
+			case S_IFDIR:
+				directoryDestroy((Directory*)node->payload);
+				break;
+			case S_IFREG:
+				fileDestroy((File*)node->payload);
+				break;
+			default:
+				break;
+		}
+		free(node);
+	}
+}
 
+
+int linkINode(INode* parentNode, const char* name, INode* node) {
 	if (!name) return 0;
 
-	if (isDirectory(parentNode)) {
-		newLink = malloc(sizeof(Link));
-		newLink->name = strdup(name);
-		newLink->inode = node;
-		(node->stat).st_nlink++;
-		linkedListPush(((Directory*)(parentNode->payload))->links, newLink);
+	if (parentNode && node && isDirectory(parentNode)) {
+		node->stat.st_nlink++;
+		directoryLinkAdd((Directory*)parentNode->payload, name, node);
 		return 1;
 	}
 
 	return 0;
 }
 
-int removeLinkFilter(void* current, void* toRemove) {
-	char* toRemoveName = (char*)toRemove;
-	Link* currentLink = (Link*) current;
-	return (strcmp(currentLink->name, toRemoveName)==0);
-}
-
-int unlinkINode(INode* parentNode, char* name) {
+int unlinkINode(INode* parentNode, const char* name) {
+	Link* link;
 	if (isDirectory(parentNode)) {
-		linkedListFilter(((Directory*)(parentNode->payload))->links, removeLinkFilter, name);
+		link = directoryLinkGet((Directory*)parentNode->payload, name);
+		if (link) {
+			link->inode->stat.st_nlink--;
+			if (!link->inode->stat.st_nlink)
+				destroyINode(link->inode);
+			directoryLinkRemove((Directory*)parentNode->payload, name);
+		}
 		return 1;
 	}
 	return 0;
@@ -224,7 +247,7 @@ void addDummyFile(INode* inode, char*name) {
 	File* dummyFile;
 
 	printf("add dummy file\n");
-	if (isDirectory(inode)) {
+	if (inode && isDirectory(inode)) {
 		dummyLink = malloc(sizeof(Link));
 		dummyNode = malloc(sizeof(INode));
 		dummyFile = malloc(sizeof(File));
@@ -234,7 +257,8 @@ void addDummyFile(INode* inode, char*name) {
 		(dummyNode->stat).st_mode =  S_IFREG | 0755;
 		(dummyNode->stat).st_nlink = 1;
 		dummyNode->payload = dummyFile;
-		dummyFile->content = "BONGIORNO";
+		dummyFile->contents = strdup("BONGIORNO\n");
+		dummyFile->size = strlen((char*)dummyFile->contents);
 		linkedListPush(dir->links, dummyLink);
 		printf("added\n");
 	} 

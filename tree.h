@@ -1,7 +1,6 @@
 #ifndef __TREE_H
 #define __TREE_H
 
-#include "linkedlist.h"
 #include <sys/stat.h>
 
 typedef enum {
@@ -18,15 +17,6 @@ typedef struct Link {
 	INode * inode;
 } Link;
 
-typedef struct File {
-	void* content;
-} File;
-
-typedef struct Directory {
-	LinkedList* links;
-} Directory;
-
-
 INode* getNodeByPath(Link* root, const char* path);
 INode* getParentNodeByPath(Link* root, const char* path);
 char* getBasename(const char* path);
@@ -40,6 +30,12 @@ inline int isRegular(INode* inode);
 
 int linkINode(INode* parentNode, const char* name, INode* node);
 INode* createINode(INode* parentNode, const char* name, mode_t mode);
-int unlinkINode(INode* parentNode, char* name);
+int unlinkINode(INode* parentNode, const char* name);
+
+void chownINode(INode* node, uid_t uid, gid_t gid);
+void chmodINode(INode* node, mode_t mode);
+
+#include "file.h"
+#include "dir.h"
 
 #endif

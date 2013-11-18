@@ -9,19 +9,17 @@
 #include <unistd.h>
 
 #include "tree.h"
+#include <sys/mman.h>
 
 Link* root;
-static const char *mlockfs_str[2] = {"Hello World!\n","Hola Mundo!!\n"};
-static const char *mlockfs_path = "/mlockfs";
-int str = 0;
-
-
 
 static int mlockfs_getattr(const char *path, struct stat *stbuf)
 {
     INode* inode = getNodeByPath(root, path);
     if (!inode) return -ENOENT;
     memcpy(stbuf, &(inode->stat), sizeof(inode->stat));
+    if (isRegular(inode))
+      stbuf->st_size = fileGetSize((File*)inode->payload);
     return 0;
 }
 
@@ -64,15 +62,6 @@ static int mlockfs_open(const char *path, struct fuse_file_info * ffi)
 
     if(!node) return -ENOENT;
 
-    switch (ffi->flags & O_ACCMODE) {
-        case O_WRONLY:
-        case O_RDONLY:
-        case O_RDWR:
-    }
-
-    if((fi->flags & 3) != O_RDONLY)
-        return -EACCES;
-
     return 0;
 }
 
@@ -89,6 +78,7 @@ static int mlockfs_rmdir(const char *path) {
     if (!parentNode) return -EACCES;
     name = getBasename(path);
     unlinkINode(parentNode, name);
+    free(name);
     return 0;
 
 }
@@ -103,33 +93,65 @@ static int mlockfs_unlink(const char * path) {
     if (!parentNode) return -EACCES;
     name = getBasename(path);
     unlinkINode(parentNode, name);
+    free(name);
     return 0;
 }
 
 static int mlockfs_create(const char * path, mode_t mode, struct fuse_file_info * ffi) {
+    INode* parentNode; 
+    char* name;
+
+    parentNode = getParentNodeByPath(root, path);
+
+    if (!parentNode) return -EACCES;
+    if (!isDirectory(parentNode)) return -EACCES;
+
+    name = getBasename(path);
+    createINode(parentNode, name, mode);
+
+    free(name);
+
+    return 0;
+}
+
+static int mlockfs_truncate(const char * path, off_t size) 
+{
+    INode* node = getNodeByPath(root, path);
+
+    if (!node) return -EACCES;
+    if (isDirectory(node)) return -EISDIR;
+    if (size < 0) return -EINVAL;
+    if (!isRegular(node)) return -EACCES;
+
+    fileResize((File*)node->payload, size);
+
+    return 0;
+}
+
+static int mlockfs_write(const char *path, const char *buf, size_t size, off_t offset,
+                      struct fuse_file_info *fi)
+{
+    INode* node = getNodeByPath(root, path);
+
+    if (!node) return -EACCES;
+    if (isDirectory(node)) return -EISDIR;
+    if (!isRegular(node)) return -EACCES;
+
+    return fileWrite((File*)node->payload, buf, size, offset);
+
 
 }
 
 static int mlockfs_read(const char *path, char *buf, size_t size, off_t offset,
                       struct fuse_file_info *fi)
 {
-    size_t len;
-    (void) fi;
-    
-    str++;
-    if (str > 1) str = 0;
-    if(strcmp(path, mlockfs_path) != 0)
-        return -ENOENT;
+    INode* node = getNodeByPath(root, path);
 
-    len = strlen(mlockfs_str[str]);
-    if (offset < len) {
-        if (offset + size > len)
-            size = len - offset;
-        memcpy(buf, mlockfs_str[str] + offset, size);
-    } else
-        size = 0;
+    if (!node) return -EACCES;
+    if (isDirectory(node)) return -EISDIR;
+    if (!isRegular(node)) return -EACCES;
 
-    return size;
+    return fileRead((File*)node->payload, buf, size, offset);
 }
 
 static int mlockfs_mkdir(const char * path, mode_t mode) {
@@ -149,6 +171,26 @@ static int mlockfs_mkdir(const char * path, mode_t mode) {
     return 0;
 }
 
+static int mlockfs_chmod(const char* path, mode_t mode) {
+
+    INode* node = getNodeByPath(root, path);
+    if (!node) return -EACCES;
+    chmodINode(node, mode);
+
+    return 0;
+
+}
+
+static int mlockfs_chown(const char* path, uid_t uid, gid_t gid) {
+
+    INode* node = getNodeByPath(root, path);
+    if (!node) return -EACCES;
+
+    chownINode(node, uid, gid);
+
+    return 0;
+
+}
 
 static struct fuse_operations mlockfs_oper = {
     .getattr   = mlockfs_getattr,
@@ -158,7 +200,11 @@ static struct fuse_operations mlockfs_oper = {
     .mkdir  = mlockfs_mkdir,
     .rmdir  = mlockfs_rmdir,
     .unlink = mlockfs_unlink,
-    .create = mlockfs_create
+    .write  = mlockfs_write,
+    .truncate = mlockfs_truncate,
+    .create = mlockfs_create,
+    .chmod = mlockfs_chmod,
+    .chown = mlockfs_chown,
 };
 
 void* printFoldr(void* result, void* current, void* data) {
@@ -173,6 +219,9 @@ int main(int argc, char *argv[])
     addDummyFile(root->inode, "test1");
     addDummyFile(root->inode, "test2");
     addDummyFile(addDummyDir(root->inode, "folder"), "file");
+
+    // Esto le da el nombre a nuestro FS.
+    mlockall(MCL_CURRENT|MCL_FUTURE);
 
     return fuse_main(argc, argv, &mlockfs_oper, NULL);
 }
