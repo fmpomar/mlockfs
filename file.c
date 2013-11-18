@@ -5,13 +5,17 @@
 
 File* fileCreate() {
 	File* newFile = malloc(sizeof(File));
+	if(!newFile) return NULL;
 	newFile->contents = NULL;
 	newFile->size = 0;
 	return newFile;
 }
 
 void fileDestroy(File* file) {
+	if (!file) return ;
+	memset(file->contents, 0, file->size);
 	free(file->contents);
+	memset(file, 0, sizeof(File));
 	free(file);
 }
 
@@ -40,6 +44,8 @@ int fileWrite(File* file, const void* buffer, size_t size, off_t offset) {
 }
 
 int fileResize(File* file, size_t size) {
+	if (!file) return 0;
+	if((file->size - size) > 0) memset((file->contents)+size, 0, file->size - size);
 	file->contents = realloc(file->contents, size);
 	if (size < 1)
 		file->contents = NULL;

@@ -4,12 +4,14 @@
 
 Directory* directoryCreate() {
 	Directory* newDirectory = malloc(sizeof(Directory));
+	if(!newDirectory) return NULL;
 	newDirectory->links = linkedListCreate();
 	return newDirectory;
 }
 
 void directoryDestroy(Directory* directory) {
 	linkedListDestroy(directory->links);
+	memset(directory, 0, sizeof(Directory));
 	free(directory);
 }
 
@@ -31,7 +33,9 @@ int removeLinkFilter(void* current, void* toRemove) {
 	char* toRemoveName = (char*)toRemove;
 	Link* currentLink = (Link*) current;
 	if (!strcmp(currentLink->name, toRemoveName)) {
+		memset(currentLink->name, 0, strlen(currentLink->name));
 		free(currentLink->name);
+		memset(currentLink, 0, sizeof(Link));
 		free(currentLink);
 		return 1;
 	}
@@ -43,6 +47,7 @@ void directoryLinkRemove(Directory* directory, const char* name) {
 	if (!directory) return;
 	tmpName = strdup(name);
 	linkedListFilter(directory->links, removeLinkFilter, tmpName);
+	memset(tmpName, 0, strlen(tmpName));
 	free(tmpName);
 }
 
@@ -58,6 +63,7 @@ Link* directoryLinkGet(Directory* directory, const char* name) {
 	if (!directory) return NULL;
 	tmpName = strdup(name);
 	link = linkedListGetFirst(directory->links, linkFilter, tmpName);
+	memset(tmpName, 0, strlen(tmpName));
 	free(tmpName);
 	return link;
 }

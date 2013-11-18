@@ -13,8 +13,7 @@
 
 Link* root;
 
-static int mlockfs_getattr(const char *path, struct stat *stbuf)
-{
+static int mlockfs_getattr(const char *path, struct stat *stbuf) {
     INode* inode = getNodeByPath(root, path);
     if (!inode) return -ENOENT;
     memcpy(stbuf, &(inode->stat), sizeof(inode->stat));
@@ -25,9 +24,7 @@ static int mlockfs_getattr(const char *path, struct stat *stbuf)
 
 
 
-static int mlockfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
-                         off_t offset, struct fuse_file_info *fi)
-{
+static int mlockfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
 
     INode* directoryNode;
     Directory* directory;
@@ -56,8 +53,7 @@ static int mlockfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 }
 
-static int mlockfs_open(const char *path, struct fuse_file_info * ffi)
-{
+static int mlockfs_open(const char *path, struct fuse_file_info * ffi) {
     INode* node = getNodeByPath(root, path);
 
     if(!node) return -ENOENT;
@@ -78,6 +74,7 @@ static int mlockfs_rmdir(const char *path) {
     if (!parentNode) return -EACCES;
     name = getBasename(path);
     unlinkINode(parentNode, name);
+    memset(name, 0, strlen(name));
     free(name);
     return 0;
 
@@ -93,6 +90,7 @@ static int mlockfs_unlink(const char * path) {
     if (!parentNode) return -EACCES;
     name = getBasename(path);
     unlinkINode(parentNode, name);
+    memset(name, 0, strlen(name));
     free(name);
     return 0;
 }
@@ -113,6 +111,7 @@ static int mlockfs_link(const char* origin, const char* path) {
 
     name = getBasename(path);
     linkINode(parentNode, name, sourceNode);
+    memset(name, 0, strlen(name));
     free(name);
 
     return 0;
@@ -133,13 +132,13 @@ static int mlockfs_create(const char * path, mode_t mode, struct fuse_file_info 
     name = getBasename(path);
     createINode(parentNode, name, mode);
 
+    memset(name, 0, strlen(name));
     free(name);
 
     return 0;
 }
 
-static int mlockfs_truncate(const char * path, off_t size) 
-{
+static int mlockfs_truncate(const char * path, off_t size) {
     INode* node = getNodeByPath(root, path);
 
     if (!node) return -EACCES;
@@ -152,9 +151,7 @@ static int mlockfs_truncate(const char * path, off_t size)
     return 0;
 }
 
-static int mlockfs_write(const char *path, const char *buf, size_t size, off_t offset,
-                      struct fuse_file_info *fi)
-{
+static int mlockfs_write(const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
     INode* node = getNodeByPath(root, path);
 
     if (!node) return -EACCES;
@@ -166,9 +163,7 @@ static int mlockfs_write(const char *path, const char *buf, size_t size, off_t o
 
 }
 
-static int mlockfs_read(const char *path, char *buf, size_t size, off_t offset,
-                      struct fuse_file_info *fi)
-{
+static int mlockfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
     INode* node = getNodeByPath(root, path);
 
     if (!node) return -EACCES;
@@ -192,6 +187,7 @@ static int mlockfs_mkdir(const char * path, mode_t mode) {
     name = getBasename(path);
     createINode(parentNode, name, mode | S_IFDIR);
 
+    memset(name, 0, strlen(name));
     free(name);
 
     return 0;
@@ -250,8 +246,7 @@ void* printFoldr(void* result, void* current, void* data) {
   return NULL;
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     root = createRoot();
     addDummyFile(root->inode, "test1");
     addDummyFile(root->inode, "test2");
