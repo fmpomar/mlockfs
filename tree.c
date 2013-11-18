@@ -130,6 +130,12 @@ void chmodINode(INode* node, mode_t mode) {
 	node->stat.st_mode = mode;
 }
 
+void utimensINode(INode* node, const struct timespec tv[]) {
+	if (!node) return;
+	node->stat.st_atim = tv[0];
+	node->stat.st_mtim = tv[1];
+}
+
 INode* createINode(INode* parentNode, const char* name, mode_t mode) {
 	INode* newNode;
 	struct stat * nodeStat;

@@ -34,6 +34,7 @@ int unlinkINode(INode* parentNode, const char* name);
 
 void chownINode(INode* node, uid_t uid, gid_t gid);
 void chmodINode(INode* node, mode_t mode);
+void utimensINode(INode* node, const struct timespec tv[]);
 
 #include "file.h"
 #include "dir.h"

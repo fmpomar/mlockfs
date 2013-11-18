@@ -192,6 +192,15 @@ static int mlockfs_chown(const char* path, uid_t uid, gid_t gid) {
 
 }
 
+static int mlockfs_utimens(const char* path, const struct timespec tv[]) {
+    INode* node = getNodeByPath(root, path);
+    if (!node) return -EACCES;
+
+    utimensINode(node, tv);
+
+    return 0;
+}
+
 static struct fuse_operations mlockfs_oper = {
     .getattr   = mlockfs_getattr,
     .readdir = mlockfs_readdir,
@@ -205,6 +214,7 @@ static struct fuse_operations mlockfs_oper = {
     .create = mlockfs_create,
     .chmod = mlockfs_chmod,
     .chown = mlockfs_chown,
+    .utimens = mlockfs_utimens
 };
 
 void* printFoldr(void* result, void* current, void* data) {
